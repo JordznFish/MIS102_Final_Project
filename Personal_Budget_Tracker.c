@@ -93,7 +93,7 @@ User login(void)
                 if (strcmp(current_user.password, file_password) == 0)
                 {
                     isValidPass = true;
-                    break; 
+                    break; //break from the loop since we found 
                 }
                 else
                 {
@@ -102,10 +102,10 @@ User login(void)
                 }
             }
         }
-        fclose(fp); 
+        fclose(fp); //always close when finish using a file
     }
 
-    //If wrong password
+    //If user not found, register new and save it into the user.txt
     if (isUserFound && !isValidPass)
     {
         printf("Try again!\n");
@@ -115,7 +115,6 @@ User login(void)
 
         return null; 
     }
-    //If user not found, register new and save it into the user.txt
     else if (!isUserFound)
     {
         printf("Registering new user \"%s\"...\n", current_user.name);
@@ -188,16 +187,16 @@ void add_expenses(User *p_current_user)
         scanf("%f", &amount);
     }
 
-    char ask_w_desription;
+    char ask_w_description;
     char description[100];
 
     printf("Add description? (Y/N): ");
-    scanf(" %c", &ask_w_desription);
+    scanf(" %c", &ask_w_description);
     while (getchar() != '\n');
 
-    char up_ask_w_desription = toupper(ask_w_desription);
+    char up_ask_w_description = toupper(ask_w_description);
 
-    if (up_ask_w_desription == 'Y')
+    if (up_ask_w_description == 'Y')
     {
         printf("Notes: ");
         fgets(description, sizeof(description), stdin);
