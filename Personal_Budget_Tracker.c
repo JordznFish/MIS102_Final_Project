@@ -93,7 +93,7 @@ User login(void)
                 if (strcmp(current_user.password, file_password) == 0)
                 {
                     isValidPass = true;
-                    break; //break from the loop since we found 
+                    break; 
                 }
                 else
                 {
@@ -102,10 +102,10 @@ User login(void)
                 }
             }
         }
-        fclose(fp); //always close when finish using a file
+        fclose(fp); 
     }
 
-    //If user not found, register new and save it into the user.txt
+    //If wrong password
     if (isUserFound && !isValidPass)
     {
         printf("Try again!\n");
@@ -115,6 +115,7 @@ User login(void)
 
         return null; 
     }
+    //If user not found, register new and save it into the user.txt
     else if (!isUserFound)
     {
         printf("Registering new user \"%s\"...\n", current_user.name);
