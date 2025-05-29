@@ -3,18 +3,19 @@ FLowchart:
 Log In(struct) -> Display Menu -> Get User Choice -> Save(Export to File) -> Exit
 
 ##Add Expenses##
--Budget goal warning 
+-Budget goal warning (Set Monthly Budget e.g. $10,000(NTD) per month)
+-Display remaining budget in menu 
 -LOCK budget if exceed
 
-Remove Expenses by item_id, month
 */
-
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 #include <windows.h>
 #include <ctype.h>
-#define OPTIONS 5
+#include <stdlib.h>
+#include <time.h>
+#define OPTIONS 7
 #define MAX_ID 50
 #define MAX_PASSWORD 50
 #define USER_FILE "users.txt"
@@ -23,9 +24,11 @@ Remove Expenses by item_id, month
 typedef enum
 {
     ADD_EXPENSES = 1,
+    REMOVE_EXPENSES,
     VIEW_HISTORY_TRANSACTION,
     VIEW_MONTHLY_REPORT,
     EXPORT_TO_CSV,
+    SETTINGS,
     QUIT
 }OPTION; 
 
@@ -37,7 +40,7 @@ typedef struct
 
 void display_menu(const User *p_current_user)
 {
-    char *menu_choices[OPTIONS] = {"Add Expenses", "View history transactions", "View Monthly Report", "Export to CSV", "Exit"};
+    char *menu_choices[OPTIONS] = {"Add Expenses", "Remove Expenses", "View history transactions", "View Monthly Report", "Export to CSV", "Settings", "Exit"};
 
     printf("=======================\n");
     printf("Personal Budget Tracker\n");
@@ -71,8 +74,11 @@ User login(void)
     printf("---Log in---\n");
     printf("Enter your name: ");
     scanf("%s", current_user.name);
+    while (getchar() != '\n');
     printf("Enter your password: ");
     scanf("%s", current_user.password);
+    while (getchar() != '\n');
+
 
     //Check whether if the file exist, if yes we search the whole file 
     FILE *fp; 
@@ -144,7 +150,6 @@ void add_expenses(User *p_current_user)
     char filename[100];
     sprintf(filename, "%s.txt", p_current_user->name);
 
-    //File handling
     FILE *fp;
     fp = fopen(filename, "a");
 
@@ -155,10 +160,38 @@ void add_expenses(User *p_current_user)
     }
 
     //Prompt user to add expense and store it into file 
-    char date[50];
-    char category[50];
+    char generated_id[50], exist_id[50], date[50], category[50];
     float amount;
+    bool isDuplicate;
+    
+    //Get Unqiue_ID by checking no duplicate id exist 
+    char line[100];
+    FILE *read_fp;
+    
+    //Generate ID
+    do
+    {
+        isDuplicate = false;
+        read_fp = fopen(filename, "r");
+        int num = rand() % 10000;
+        sprintf(generated_id, "TH-%04d", num);
 
+        //check if it's alrdy existed 
+        while (fgets(line, sizeof(line), read_fp))
+        {
+            sscanf(line, "%[^|]", exist_id);
+            if (strcmp(generated_id, exist_id) == 0)
+            {
+                isDuplicate = true;
+            }
+        }
+
+        fclose(read_fp);
+
+    } while (isDuplicate);
+
+
+    //Get Date
     printf("Date (YYYY-MM-DD): ");
     fgets(date, sizeof(date), stdin);
     date[strcspn(date, "\n")] = 0;
@@ -172,21 +205,26 @@ void add_expenses(User *p_current_user)
         date[strcspn(date, "\n")] = 0;
     }
 
+    //Get Category
     printf("Category: ");
     fgets(category, sizeof(category), stdin);
     category[strcspn(category,"\n")] = 0;
     for (int i = 0; category[i]; i++) category[i] = toupper(category[i]);
 
+    //Get Expenses Amount
     printf("Amount(NTD): ");
     scanf("%f", &amount);
+    while(getchar() != '\n');
 
     while (amount <= 0)
     {
         printf("Amount must not be 0 or negative!\n");
         printf("Amount(NTD): ");
         scanf("%f", &amount);
+        while (getchar() != '\n');
     }
 
+    //Ask for descriptions
     char ask_w_description;
     char description[100];
 
@@ -205,11 +243,69 @@ void add_expenses(User *p_current_user)
     else strcpy(description,"");
     
     //append into file
-    fprintf(fp, "%s|%s|%.2f|%s\n", date, category, amount, description);
+    fprintf(fp, "%s|%s|%s|%.2f|%s\n", generated_id, date, category, amount, (strlen(description)) > 0 ? description : "-");
     printf("New expenses added: %s|%s|$%.2f\n",date, category, amount);
 
     //Close file after use
     fclose(fp);
+
+    return;
+}
+
+void remove_expenses_by_itemID(User *p_current_user)
+{
+    //read from file 
+    char filename[150];
+    sprintf(filename, "%s.txt", p_current_user->name);
+
+    FILE *fp;
+    fp = fopen(filename, "r");
+    if (!fp)
+    {
+        printf("No record.\n");
+        return;
+    }
+
+    //Prompt user enter item ID
+    char remove_item_id[50];
+    
+    printf("Remove by ID (e.g., TH-0001): ");
+    fgets(remove_item_id, sizeof(remove_item_id), stdin);
+    remove_item_id[strcspn(remove_item_id, "\n")] = 0;
+
+    //Copy all transaction except for the requested transaction by user
+    FILE *temp_fp;
+    temp_fp = fopen("temp.txt", "w");
+    if (!temp_fp) 
+    {
+    printf("Error creating temp file.\n");
+    return;
+    }
+
+    char line[100], ID[50];
+    bool found_ID = false;
+
+    while (fgets(line, sizeof(line), fp))
+    {
+        sscanf(line, "%[^|]", ID);
+        if (strcmp(remove_item_id, ID) != 0)
+        {
+            fputs(line, temp_fp);
+        }
+        else 
+        {
+            found_ID = true;
+        }
+    }
+
+    fclose(fp);
+    fclose(temp_fp);
+
+    remove(filename);
+    rename("temp.txt", filename);
+
+    if (found_ID) printf("Transaction \"%s\" has been removed successfully.\n", remove_item_id);
+    else printf("Transaction \"%s\" not found.\n", remove_item_id);
 
     return;
 }
@@ -237,16 +333,17 @@ void view_history_reports(User *p_current_user)
     printf("====== Transaction History ======\n");
     while (fgets(line, sizeof(line), fp))
     {
-        char date[50],category[50], description[100];
+        char ID[50], date[50],category[50], description[100];
         float amount;
         
-        sscanf(line, "%[^|]|%[^|]|%f|%[^\n]", date, category, &amount, description);
-        printf("%s | %s | $%.2f | %s\n", date, category, amount, description);
+        sscanf(line, "%[^|]|%[^|]|%[^|]|%f|%[^\n]", ID, date, category, &amount, description);
+        printf("%s | %s | %s | $%.2f | %s\n", ID, date, category, amount, description);
         total += amount;
     }
 
     printf("Total expenses: $%.2f (NTD)\n", total);
-    
+
+    fclose(fp);
     return;
 }
 
@@ -265,6 +362,7 @@ void view_monthly_report(User *p_current_user)
     while (strlen(target_month) != 7)
     {
         printf("Invalid format! Try again.\n");
+        printf("View month (YYYY-MM): ");
         fgets(target_month, sizeof(target_month), stdin);
         target_month[strcspn(target_month, "\n")] = 0;
     }
@@ -288,14 +386,14 @@ void view_monthly_report(User *p_current_user)
 
     while (fgets(line, sizeof(line), fp))
     {
-        char date[50],category[50], description[100];
+        char ID[50], date[50],category[50], description[100];
         float amount;
         
-        sscanf(line, "%[^|]|%[^|]|%f|%[^\n]", date, category, &amount, description);
+        sscanf(line, "%[^|]|%[^|]|%[^|]|%f|%[^\n]", ID, date, category, &amount, description);
 
         if (strncmp(date, target_month, 7) == 0)
         {
-            printf("%s | %s | $%.2f | %s\n", date, category, amount, description);
+            printf("%s | %s | %s | $%.2f | %s\n", ID, date, category, amount, description);
             total += amount;
             found = true;
         }
@@ -327,7 +425,7 @@ void export_to_CSV(User *p_current_user)
         return;
     }
 
-    fprintf(destination, "Date,Category,Amount,Description\n");
+    fprintf(destination, "ID,Date,Category,Amount,Description\n");
     //Read txt file
     char line[100];
     while (fgets(line, sizeof(line), source))
@@ -352,8 +450,11 @@ void export_to_CSV(User *p_current_user)
     return;
 }
 
+void settings(){};
+
 int main(void)
 {
+    srand(time(NULL));
     int attempt = 0;
     User current_user;
     User *p_current_user = &current_user;
@@ -384,6 +485,9 @@ int main(void)
         case ADD_EXPENSES:
             add_expenses(p_current_user);
             break;
+        case REMOVE_EXPENSES:
+            remove_expenses_by_itemID(p_current_user);
+            break;
         case VIEW_HISTORY_TRANSACTION:
             view_history_reports(p_current_user);
             break;
@@ -393,11 +497,14 @@ int main(void)
         case EXPORT_TO_CSV:
             export_to_CSV(p_current_user);
             break;
+        case SETTINGS:
+            ;
+            break;
         case QUIT:
             printf("Thanks for using our program!\n");
             break;
         default:
-            printf("Invalid option! Please choose 1~5.\n");
+            printf("Invalid option! Please choose 1~7.\n");
             break;
         }
     } while (userChoice != QUIT);
