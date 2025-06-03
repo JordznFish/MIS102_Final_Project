@@ -43,6 +43,7 @@
 - <用戶>.csv 和 <用戶>_budget.csv：轉出後可用 Excel 開啟的報表
 
 */
+
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
@@ -57,6 +58,7 @@
 #define DATE_FORMAT 10
 #define MAX_LINE 256
 
+//For readability in menu
 typedef enum
 {
     ADD_EXPENSES = 1,
@@ -68,11 +70,13 @@ typedef enum
     QUIT
 }OPTION; 
 
+//User attributes 
 typedef struct
 {
     char name[MAX_ID];
     char password[MAX_PASSWORD];
 }User;
+
 
 void display_menu(const User *p_current_user)
 {
@@ -82,6 +86,7 @@ void display_menu(const User *p_current_user)
     printf("Personal Budget Tracker\n");
     printf("Welcome back! %s\n", p_current_user->name);
     
+    //If data exists, display the budget by months
     char budget_filename[100];
     sprintf(budget_filename, "%s_budget.txt", p_current_user->name);
     FILE *budget_limit_fp;
@@ -102,6 +107,7 @@ void display_menu(const User *p_current_user)
         fclose(budget_limit_fp);
     }
 
+    //Display options 
     printf("=======================\n");
     for (int i = 0; i < OPTIONS; i++)
     {
@@ -110,6 +116,7 @@ void display_menu(const User *p_current_user)
     return;
 }
 
+//Small function that returns user input
 int get_user_choice(void)
 {
     int input;
@@ -120,6 +127,7 @@ int get_user_choice(void)
     return input;
 }
 
+//Returns specific user struct
 User login(void)
 {
     User current_user;
@@ -150,9 +158,11 @@ User login(void)
 
             sscanf(line, "%[^|]|%s", file_username, file_password); //%[] scanset, reads until |
 
+            //Check specific user's existance
             if (strcmp(current_user.name, file_username) == 0)
             {
                 isUserFound = true;
+                //Check password validity
                 if (strcmp(current_user.password, file_password) == 0)
                 {
                     isValidPass = true;
@@ -168,8 +178,8 @@ User login(void)
         fclose(fp); //always close when finish using a file
     }
 
-    //If user not found, register new and save it into the user.txt
-    if (isUserFound && !isValidPass)
+    
+    if (isUserFound && !isValidPass) //if User found, but password incorrect, return empty user struct
     {
         printf("Try again!\n");
         User null;
@@ -178,7 +188,7 @@ User login(void)
 
         return null; 
     }
-    else if (!isUserFound)
+    else if (!isUserFound) //If user not found, register new and save it into the user.txt
     {
         printf("Registering new user \"%s\"...\n", current_user.name);
 
@@ -190,9 +200,10 @@ User login(void)
         }
         else printf("Error occured.\n");
     }
-    return current_user;
+    return current_user; //user struct
 }
 
+//Small anti-hacker detection
 void exceed_attempt_message(void)
 {
     printf("Unusual activity detected.\n");
@@ -200,6 +211,7 @@ void exceed_attempt_message(void)
     Sleep(5000);
     return;
 }
+
 
 void add_expenses(User *p_current_user)
 {
@@ -295,8 +307,10 @@ void add_expenses(User *p_current_user)
         while (fgets(budget_line, sizeof(budget_line), budget_fp))
         {
             sscanf(budget_line, "%[^|]|%f", budget_date, &budget_limit);
+            //if month found 
             if (strncmp(budget_date, date, 7) == 0)
             {
+                //Read from expenses.txt to calculate total spendings of that month
                 char total_spent_filename[100], line[MAX_LINE];
                 sprintf(total_spent_filename, "%s.txt", p_current_user->name);
                 FILE *read_total_spent_fp;
@@ -319,6 +333,7 @@ void add_expenses(User *p_current_user)
                     fclose(read_total_spent_fp);
                 }
 
+                //Display results 
                 if (total_month_expenses + amount > budget_limit)
                 {
                     printf("Warning: This expenses will exceed the monthly budget $%.2f!\n", budget_limit);
@@ -381,7 +396,7 @@ void remove_expenses_by_itemID(User *p_current_user)
 
     //Copy all transaction except for the requested transaction by user
     FILE *temp_fp;
-    temp_fp = fopen("temp.txt", "w");
+    temp_fp = fopen("temp.txt", "w"); //create new file
     if (!temp_fp) 
     {
     printf("Error creating temp file.\n");
@@ -396,18 +411,21 @@ void remove_expenses_by_itemID(User *p_current_user)
         sscanf(line, "%[^|]", ID);
         if (strcmp(remove_item_id, ID) != 0)
         {
-            fputs(line, temp_fp);
+            fputs(line, temp_fp); //Copy all line to temp_file
         }
         else 
         {
-            found_ID = true;
+            found_ID = true; //For show correct output message
         }
     }
 
+    //Remember to CLOSE two files before removing!
     fclose(fp);
     fclose(temp_fp);
 
+    //remove the original file
     remove(filename);
+    //rename the copied temp file into filename
     rename("temp.txt", filename);
 
     if (found_ID) printf("Transaction \"%s\" has been removed successfully.\n", remove_item_id);
@@ -624,13 +642,13 @@ void set_monthly_budget(User *p_current_user)
     }
 
     //Calculate total expenses for the specific month (from John.txt)
-    FILE *fp_expense;
-    fp_expense = fopen(filename, "r");
+    FILE *expenses_fp;
+    expenses_fp = fopen(filename, "r");
 
-    char line[MAX_LINE];
     char ID[50], date[50], category[50], description[100];
     float amount, monthly_total = 0;
-    while (fgets(line, sizeof(line), fp_expense))
+    char line[MAX_LINE];
+    while (fgets(line, sizeof(line), expenses_fp))
     {
         sscanf(line, "%[^|]|%[^|]|%[^|]|%f|%[^\n]", ID, date, category, &amount, description);
         if (strncmp(date, month, 7) == 0)
@@ -638,7 +656,7 @@ void set_monthly_budget(User *p_current_user)
             monthly_total += amount;
         }
     }
-    fclose(fp_expense);
+    fclose(expenses_fp);
 
     //if new budget_limit is lower than expense = invalid 
     float budget_limit;
@@ -670,6 +688,7 @@ void set_monthly_budget(User *p_current_user)
     float existing_limit;
     bool updated = false;
 
+    //If there exists a budget_file, we find the existing month with the user input month, and "delete from original file" then we update data as a new file
     if (fp_old)
     {
         while (fgets(budget_line, sizeof(budget_line), fp_old))
@@ -688,6 +707,7 @@ void set_monthly_budget(User *p_current_user)
     remove(budget_filename);
     rename("temp_budget.txt", budget_filename);
 
+    //Output message
     if (updated)
         printf("Updated budget for %s to $%.2f\n", month, budget_limit);
     else
