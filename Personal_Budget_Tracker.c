@@ -1,5 +1,14 @@
 /*
+README:
+## Compilation Info
 
+Written & tested on:
+- GCC 13.2.0 (Rev3, MSYS2 on Windows 10)
+- C Standard: C17 (__STDC_VERSION__: 201710)
+- OS: Windows only (uses <windows.h>)
+
+
+------------------------------------------------------------------
 流程總覽:
 1)用戶登入(支持創建多個用戶)
 
